@@ -1,0 +1,750 @@
+---
+title: "Wrangling"
+date: today
+format: pdf
+editor: visual
+---
+
+```{r}
+#| include: false
+#| warning: false
+
+# Load packages
+library(igraph)
+library(readr)
+library(ggnetwork)
+library(tidyverse)
+```
+
+## Initial Wrangling
+
+```{r}
+# Read in data
+## Goal data
+hockey <- read_csv("data/hockey.txt")
+
+## Player data
+players <- read_csv("data/player_data.txt")
+```
+
+```{r}
+# Basic wrangling
+hockey_clean <- hockey %>% 
+  ## Select columns of interest
+  select(Tm, Assist1, Scorer) %>% 
+  ## Drop NA (get rid of unassisted goals)
+  drop_na() 
+
+# Wrangle player data
+players <- players %>%
+  select(Player, G, A, Pos, , GP, Team) %>% 
+  rename(name = Player, ## For joining
+         "Total Goals" = G,
+         "Total Assists" = A,
+         "Games Played" = GP,
+         "Position" = Pos) %>%
+  # Rename Position variable levels
+  mutate(Position = case_when(Position == "C" ~ "Center",
+                              Position == "RW" ~ "Right Wing",
+                              Position == "LW" ~ "Left Wing",
+                              Position == "W" ~ "Wing",
+                              Position == "F" ~ "Forward",
+                              Position == "D" ~ "Defense",
+                              TRUE ~ "Goalie"))
+  ## Save for Shiny app
+  saveRDS(players, "app/hockey_networks/players.rds")
+```
+
+## Shiny App Wrangling
+
+```{r}
+#| warning: false
+# For reproducibility
+set.seed(231)
+
+# Using hockey_clean as basis
+
+# SJS
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "SJS") %>% 
+  # Count total of goals between a pair
+  group_by(Assist1, Scorer) %>% ## Groups by pair 
+  summarize(goals = n()) ## Counts number of goals between the pairs
+# Make directional network
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+# Get edge weights for HITS scores
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+# Compute HITS scores
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+# Add HITS scores as vertex attributes
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                              value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                              value = hockey_hits$authority)
+
+# Make plottable on ggplot
+hockey_network <- ggnetwork(hockey_igraph)
+
+# Save for Shiny app
+saveRDS(hockey_network, "app/hockey_networks/sjs_network.rds")
+
+# MTL
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "MTL") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                              value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                              value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/mtl_network.rds")
+
+# CAR
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "CAR") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                              value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                              value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/car_network.rds")
+
+# EDM
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "EDM") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                              value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                              value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/edm_network.rds")
+
+# TBL
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "TBL") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                              value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                              value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/tbl_network.rds")
+
+# BUF
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "BUF") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                              value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                              value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/buf_network.rds")
+
+# CBJ
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "CBJ") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                              value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                              value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/cbj_network.rds")
+
+# PIT
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "PIT") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                              value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                              value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/pit_network.rds")
+
+# PIT
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "PHI") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                              value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                              value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/phi_network.rds")
+
+# PIT
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "ANA") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                              value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                              value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/ana_network.rds")
+
+# BOS
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "BOS") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                              value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                              value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/bos_network.rds")
+
+# VEG
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "VEG") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                              value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                              value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/veg_network.rds")
+
+# UTA
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "UTA") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                              value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                              value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/uta_network.rds")
+
+# COL
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "COL") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                              value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                              value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/col_network.rds")
+
+# NSH
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "NSH") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                              value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                              value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/nsh_network.rds")
+
+# VAN
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "VAN") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                              value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                              value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/van_network.rds")
+
+# WSH
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "WSH") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                              value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                              value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/wsh_network.rds")
+
+# NYI
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "NYI") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                              value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                              value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/nyi_network.rds")
+
+# NJD
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "NJD") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                              value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                              value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/njd_network.rds")
+
+# NYR
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "NYR") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                              value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                              value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/nyr_network.rds")
+
+# MIN
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "MIN") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                              value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                              value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/min_network.rds")
+
+# LAK
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "LAK") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                              value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                              value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/lak_network.rds")
+
+# CGY
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "CGY") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                                 value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                                 value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/cgy_network.rds")
+
+# CHI
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "CHI") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                                 value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                                 value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/chi_network.rds")
+
+# DAL
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "DAL") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                                 value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                                 value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/dal_network.rds")
+
+# DET
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "DET") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                                 value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                                 value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/det_network.rds")
+
+# FLA
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "FLA") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                                 value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                                 value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/fla_network.rds")
+
+# OTT
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "OTT") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                                 value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                                 value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/ott_network.rds")
+
+# SEA
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "SEA") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                                 value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                                 value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/sea_network.rds")
+
+# STL
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "STL") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                                 value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                                 value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/stl_network.rds")
+
+# TOR
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "TOR") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                                 value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                                 value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/tor_network.rds")
+
+# WPG
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "WPG") %>% 
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                                 value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                                 value = hockey_hits$authority)
+
+hockey_network <- ggnetwork(hockey_igraph)
+
+saveRDS(hockey_network,"app/hockey_networks/wpg_network.rds")
+```
+
+Data
+
+*2025-26 NHL Skater Statistics*. (2026). \[Dataset\]. Sports Reference. Retrieved May 1, 2026, from https://www.hockey-reference.com/leagues/NHL_2026_skaters.html
+
+*Goal Finder, Current Search for all games, in 2025-26, in the regular season, sorted by descending Scorer.* (2026). \[Dataset\]. Sports Reference. Retrieved April 15 & 17, 2026, from https://www.sports-reference.com/stathead/tiny/FtM4c

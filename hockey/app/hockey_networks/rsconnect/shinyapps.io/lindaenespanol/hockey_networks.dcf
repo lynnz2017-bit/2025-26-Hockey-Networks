@@ -1,0 +1,12 @@
+name: hockey_networks
+title: hockey_networks
+username: lindaenespanol
+account: lindaenespanol
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 17621135
+bundleId: 12284164
+url: https://lindaenespanol.shinyapps.io/hockey_networks/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE

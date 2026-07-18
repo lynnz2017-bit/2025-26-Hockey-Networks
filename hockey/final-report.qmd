@@ -1,0 +1,286 @@
+---
+title: "Hockey: Depth in Networks"
+subtitle: "Report"
+author: "Lynn Zhang"
+date: today
+format: pdf
+editor: visual
+---
+
+```{r}
+#| include: false 
+
+library(kableExtra)
+library(tidyverse)
+library(igraph)
+library(readr)
+library(ggnetwork)
+```
+
+# Introduction
+
+Visualizing the NHL 2025-26 season via networks! If you don't know what a network can't help you there tbh just search it up.
+
+# Data
+
+For the network, the bulk of the data was pulled from Sports Reference, a website dedicated to sports data. I specifically used their Stathead suite of tools (which is, unfortunately, pay-walled). Stathead pulls their data from an external website, sportradar, but they do not indicate how exactly they pull the data (Sports Reference, n.d.). Data was downloadable in many forms, but I used the CSV option. I will acknowledge that I had to (painstakingly) copy and paste the data many times into a .txt file. This is because Stathead does not compile a query into a singular data set, but instead generates splices of the data throughout many webpages. So, the data I gathered is not the most easily accessible.
+
+That data was information on every single goal scored during the [NHL 2025-2026 season](https://www.sports-reference.com/stathead/tiny/FtM4c) (Sports Reference, 2026). More specifically, who scored each goal and who assisted on the goal. Additional information was provided, but for this analysis I only needed the team (Tm), scorer (Scorer), and who assisted on the goal (Assist1). I also added in the total number of goals scored between each unique scorer/assist pair (for edge weights). I defined this as "goals" in my data—I have an example of how I did this in my Results section.
+
+For additional context, I added a click function in my Shiny App that displays the total number of goals and assists scored by a player during the season. This data was taken from [Sports Reference](https://www.hockey-reference.com/leagues/NHL_2026_skaters.html) (Sports Reference, 2026). Sports Reference is not pay-walled (only their Stathead tools are), so this data was easy to download, I just copy and pasted CSV data into a .txt. Additional information was included, but I only selected for player name (Player), their total goals (G), total assists (A), games played this season (GP), and position (P). I used `case_when` to rename the levels of the Position variable.
+
+I also selected for "Team" to indicate mid-season player trades. A traded player had 3 observations. The first observation helps to indicate a player was traded under "Team" with the ID "2TM" and shows their total stats for the entire season on *both* teams. The next 2 observations indicate the different teams the player played for. The first being the player's original team, the second being the team the player was traded to, as well as their respective stats for each team. 2 players were traded 3 times, which was indicated with "3TM" with similar logic as above. I included 2TM and 3TM which are confusing variables, but clarifiable, and I wanted the player's overall performance.
+
+I did, however, have to join this player data to the goal data in my App, which is shown below. (I joined player data in my Results section too, but the code is different because I could use `semi_join` as I started with player data there, *not* already filtered team data).
+
+```{r}
+#| eval: false
+xxx_network %>% ## `xxx` is just a placeholder
+      nearPoints(input$xxx_click, xvar = "x", yvar = "y") %>%
+      group_by(name) %>%
+      # `summarize` w/ `.groups = "rowwise"` to show each name only once 
+      summarize(.groups = "rowwise") %>%
+      left_join(players, by = "name") 
+```
+
+The code for all the wrangling (except the Shiny code) can be seen in my wrangling qmd.
+
+# Methods
+
+As mentioned in the Introduction, this analysis focuses on networks as my method. The network is directed (with edges originating from the assister, and the arrowhead pointing towards the scorer). Nodes are each unique player. The number of goals scored between a pair are the edge weights.
+
+For this analysis, to look at the more player specific questions I had, I used a hubs and authorities analysis of the data.
+
+## Hubs and Authorities
+
+One way to organize internet searches with networks is through Hyperlink-Induced Topic Search (HITS), which introduces the idea of hubs and authorities (Briza et al., 2024). An **authority** is a web page gauged as important based on its efficacy in *providing* information about a topic (Briza et al., 2024). A **hub** is a web page gauged as important based on its efficacy in *directing* towards information about a topic (Briza et al., 2024). We can apply this idea of hubs and authorities to hockey players in which hubs are players who *assist* on a lot of goals, and authorities are players who *score* a lot of goals. The hub and authority scores both are put on a scale of 0 through 1 to rank the players relatively with one another in any given team. Players with a value closer to 1 are a stronger hub/authority (depending on which score you are looking at). A player with a value of 1 is the best hub/authority on a given team. As a note, some players can be *both* the best hub *and* authority (both values being a 1) on a team—this plays into the idea of depth once again (can we see that a roster more heavily depending on a star player?). Again, this is a ranking system, and thus are relative comparisons within a team.
+
+A Shiny App makes for an easy comparison between these two scores by changing whether we are looking at the hub or authority score.
+
+This analysis used the `igraph` package. To add in HITS scores, I used the `hits_score` function, which generates hub and authority scores, which were added as vertex attributes. The code I made to implement these network techniques can be seen in the Results section (as I used it to generate some example graphs).
+
+# Results
+
+I pulled 2 teams that I think best represent the opposite ends of depth, the San Jose Sharks and the Buffalo Sabres. (I did all of this analysis before the Canes won the Cup through some amazing depth, but the Sabres looked more visually appealing when I first wrote it up okay shhh.)
+
+As a reminder, hub and authority scores are on a ranked system from 0-1. Because they are not unique to a team, I did not add a legend for them. The color of the arrows only indicate which player an assist is from, with each unique player having their own specific color. This legend was not added because it would be long and not very informative.
+
+I demonstrate the code I used throughout the project with the Sharks, but the Sabres' visualizations will only show the output.
+
+All of this looks better on the Shiny App btw!
+
+```{r}
+#| include: FALSE
+# Read in data
+## Goal data
+hockey <- read_csv("data/hockey.txt")
+
+## Player data
+players <- read_csv("data/player_data.txt")
+
+# Basic wrangling
+hockey_clean <- hockey %>% 
+  ## Select columns of interest
+  select(Tm, Assist1, Scorer) %>% 
+  ## Drop NA (get rid of unassisted goals)
+  drop_na() 
+
+# Wrangle player data
+players <- players %>%
+  select(Player, G, A, Pos, , GP, Team) %>% 
+  rename(name = Player, ## For joining
+         "Total Goals" = G,
+         "Total Assists" = A,
+         "Games Played" = GP,
+         "Position" = Pos) %>% 
+  mutate(Position = case_when(Position == "C" ~ "Center",
+                              Position == "RW" ~ "Right Wing",
+                              Position == "LW" ~ "Left Wing",
+                              Position == "W" ~ "Wing",
+                              Position == "F" ~ "Forward",
+                              Position == "D" ~ "Defense",
+                              TRUE ~ "Goalie"))
+```
+
+## San Jose Sharks:
+
+```{r}
+#| fig-width: 8
+#| fig-height: 6
+#| warning: false
+# Reproducibility
+set.seed(231)
+
+# San Jose Sharks
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "SJS") %>% 
+  ## Count total of goals between a pair
+  group_by(Assist1, Scorer) %>% ## Groups by pair 
+  summarize(goals = n()) ## Counts number of goals between the pairs
+## Make directional network
+hockey_igraph <- graph_from_data_frame(hockey_t, directed = TRUE)
+
+## Get edge weights for HITS scores
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+## Compute HITS scores
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+## Add HITS scores as vertex attributes
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                              value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                              value = hockey_hits$authority)
+
+## Make plottable on ggplot
+sjs_network <- ggnetwork(hockey_igraph)
+
+## Plot with hub attribute
+ggplot(data = sjs_network, aes(x = x, y = y, 
+          xend = xend, yend = yend)) +
+ geom_edges(arrow = arrow(type = "closed", length = unit(2, "pt")), 
+            curvature = 0.2,
+            alpha = 0.5,
+            aes(linewidth = goals, color = name)) +
+ geom_nodes(aes(size = hub_score)) +
+ guides(color = "none",
+        size = "none") + 
+ theme_blank() +
+ labs(title = "Sharks: Hub scores",
+      linewidth = "Number of goals")
+
+## Plot with authority attribute
+ggplot(data = sjs_network, aes(x = x, y = y, 
+          xend = xend, yend = yend)) +
+ geom_edges(arrow = arrow(type = "closed", length = unit(2, "pt")), 
+            curvature = 0.2,
+            alpha = 0.5,
+            aes(linewidth = goals, color = name)) +
+ geom_nodes(aes(size = auth_score)) +
+ guides(color = "none",
+        size = "none") + 
+ theme_blank() +
+ labs(title = "Sharks: Authority scores",
+      linewidth = "Number of goals")
+ 
+## Show player data
+players %>% 
+  semi_join(sjs_network, by = "name") %>% ## Filters join for only Sharks players
+  arrange(desc("Total Goals")) %>% 
+  head(5) %>% 
+  kable(caption = "Top 5 Sharks Players", booktabs = TRUE)
+```
+
+## Buffalo Sabres:
+
+```{r}
+#| echo: FALSE
+#| fig-width: 8
+#| fig-height: 6
+# Reproducibility
+set.seed(231)
+
+# Buffalo
+hockey_t <- hockey_clean %>% 
+  filter(Tm == "BUF") %>% 
+  # Count total of goals between a pair
+  group_by(Assist1, Scorer) %>% 
+  summarize(goals = n()) 
+# Make directional network
+hockey_igraph <- graph_from_data_frame(hockey_t,
+                                    directed = TRUE)
+
+# Get edge weights for HITS scores
+hockey_edge_weights <- edge_attr(hockey_igraph, name = "goals")
+
+# Compute HITS scores
+hockey_hits <- hits_scores(hockey_igraph, weights = hockey_edge_weights)
+
+# Add HITS scores as vertex attributes
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "hub_score",
+                              value = hockey_hits$hub)
+hockey_igraph <- set_vertex_attr(hockey_igraph, name = "auth_score",
+                              value = hockey_hits$authority)
+
+# Make plottable on ggplot
+buf_network <- ggnetwork(hockey_igraph)
+
+# Plot with hub attribute
+ggplot(data = buf_network, aes(x = x, y = y, 
+          xend = xend, yend = yend)) +
+ geom_edges(arrow = arrow(type = "closed", length = unit(2, "pt")), 
+            curvature = 0.2,
+            alpha = 0.5,
+            aes(linewidth = goals, color = name)) +
+ geom_nodes(aes(size = hub_score)) +
+ guides(color = "none",
+        size = "none") + 
+ theme_blank() +
+ labs(title = "Sabres: Hub scores",
+      linewidth = "Number of goals")
+
+# Plot with authority attribute
+ggplot(data = buf_network, aes(x = x, y = y, 
+          xend = xend, yend = yend)) +
+ geom_edges(arrow = arrow(type = "closed", length = unit(2, "pt")), 
+            curvature = 0.2,
+            alpha = 0.5,
+            aes(linewidth = goals, color = name)) +
+ geom_nodes(aes(size = auth_score)) +
+ guides(color = "none",
+        size = "none") + 
+ theme_blank() +
+ labs(title = "Sabres: Authority scores",
+      linewidth = "Number of goals")
+ 
+# Show player data
+players %>% 
+  semi_join(buf_network, by = "name") %>% 
+  arrange(desc("Total Goals")) %>% 
+  head(5) %>% 
+  kable(caption = "Top 5 Sabres Players", booktabs = TRUE)
+```
+
+# Conclusion
+
+This was me just arguing why Mack should've at least had a Hart nom tbh.
+
+Don't get misled by the data! For example, the Vancouver Canucks look as if they have a lot of depth in the team. However, if you know that they were the worst team in the league, and remember that edge weights are relative and theirs only go up to 5 goals (vs. the Sabres' 8), they are less impressive.
+
+This analysis is also not perfect, which I exhaustively detailed below.
+
+## Notes on the Data
+
+The NHL tracks primary assists as well as any player on the secondary assist (assists that assisted the primary assist). I removed the secondary assists to simplify the data analysis, but this did remove nuance for players who assisted secondarily more. The NHL also counts the total number of assists for any given player as *both* the primary and secondary assists, with no distinction between the two.
+
+I had to additionally remove any unassisted goals because an edge could not be made. This, as well as the just mentioned secondary assist omission does make it so that the total number of goals and assists of any given player is almost always an over count relative the number of goals/assists seen in the network itself. However, the total number of goals and assists in the season gives a better idea of the player holistically on ice, which is why I included these statistics instead of the total number of network goals/assists.
+
+The visualizations in conjunction with Shiny during this project gave me a lot of grief (more details below). Because of this, I had to generate a separate data file for every single NHL team to read in my data. My data is still reproducible (you could use this code for different seasons, for example), but the actual curation of it is clunky and not very efficient.
+
+## Notes on Visualization
+
+Much of the visualization in this project, as most things do in data, became a series of trade offs. Many of the roadblocks came ahead in the need to filter by team. To make a long story short, I learned that igraph objects, from what I can tell, are fundamentally incompatible with reactive Shiny objects. An igraph object would not generate from reactive objects. Ultimately, I had to do all the network analysis in a qmd, then saved each separate NHL team in its own .rds file in its final `ggnetwork` form (something actually compatible with Shiny), which lets the user to flip between the hub and authority scores. However, using ggplot means that the network is very cluttered, but compromises had to be made.
+
+I tried using the `visNetwork` package, which made the graph more readable and interactive. However, the igraph/Shiny issue made it unusable because you cannot toggle between the hubs/authority scores within the igraph object the `visNetwork` package used. To make the HITS scores interactive, I would have to make separate data files for the hub/authority scores in addition to separate team files, which is where I drew my line in the sand.
+
+I did my best, but I know it is not the easiest to read, especially if you are not very familiar with the sport and less able to extrapolate what the graph can tell you.
+
+## Some Yearnings
+
+If I had more time, I would have researched on network packages more compatible with Shiny, as I am sure they exist (for example, I considered `plotly` at one point). It also would be nice to have the tab panel team name appear in the graph title.
+
+This analysis does not capture a lot of nuance that comes with the sport, a lot goes into player/team performance. It would have been cool to do something more on novel/predictive with the network (as I am interested in that), but it was outside the scope of what the project needed, and also I don't think I'm smart enough to do an analysis like that.
+
+# References
+
+*2025-26 NHL Skater Statistics*. (2026). \[Dataset\]. Sports Reference. Retrieved May 1, 2026, from https://www.hockey-reference.com/leagues/NHL_2026_skaters.html
+
+Briza, A., Dorosan, M., II, L. L., Noel, J. C., & Roxas-Villanueva, R. M. (2024). *Hubs and authorities—ALIS: Algorithmic library for scalability documentation*. ALIS: Algorithmic Library for Scalability. https://phdinds-aim.github.io/alis/link-analysis/hubs-and-authorities.html
+
+*Goal Finder, Current Search for all games, in 2025-26, in the regular season, sorted by descending Scorer.* (2026). \[Dataset\]. Sports Reference. Retrieved April 15 & 17, 2026, from https://www.sports-reference.com/stathead/tiny/FtM4c
+
+igraph. (n.d.). *Kleinberg’s hub and authority centrality scores.* Retrieved May 6, 2026, from https://r.igraph.org/reference/hits_scores.html
+
+What is a Depth Chart and why is it Important? (2020, February 19). *Hockey Skills Training*. https://www.hockeyskillstraining.com/what-is-a-depth-chart-and-why-is-it-important/
+
+*What is the difference between an undirected and a directed Graph?* (2023, June 9). GeeksforGeeks. https://www.geeksforgeeks.org/dsa/what-is-the-difference-between-an-undirected-and-a-directed-graph/
