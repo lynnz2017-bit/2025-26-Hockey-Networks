@@ -1,7 +1,6 @@
 ---
 title: "Hockey: Depth in Networks"
 subtitle: "Report"
-author: "Lynn Zhang"
 date: today
 format: pdf
 editor: visual
